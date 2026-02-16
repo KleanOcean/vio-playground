@@ -7,11 +7,14 @@ import threading
 import cv2
 import numpy as np
 
-# 将 test/ 加入路径以复用 imsee_sdk.py
+# 将 test/ 加入路径以复用 imsee_sdk.py 和 vis_utils.py
 _PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _TEST_DIR = os.path.join(_PROJECT_DIR, "test")
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
+
+from config import RESOLUTION, FPS
+from vis_utils import depth_to_color
 
 
 class IndemindHandler:
@@ -41,7 +44,7 @@ class IndemindHandler:
             _preload_deps()
 
             self._sdk = ImseeSdk()
-            ret = self._sdk.init(1, 25)
+            ret = self._sdk.init(RESOLUTION, FPS)
             if ret != 0:
                 self._sdk = None
                 return {"success": False, "error": f"SDK init failed: {ret}"}
@@ -137,7 +140,7 @@ class IndemindHandler:
             cam = cv2.cvtColor(self._last_frame, cv2.COLOR_GRAY2BGR)
 
             if self._last_depth is not None:
-                colored, clamped, valid = self.depth_to_color(self._last_depth)
+                colored, clamped, valid = depth_to_color(self._last_depth)
                 ch, cw = cam.shape[:2]
                 dh, dw = colored.shape[:2]
 
@@ -166,23 +169,3 @@ class IndemindHandler:
             _, buf = cv2.imencode('.jpg', cam,
                                   [cv2.IMWRITE_JPEG_QUALITY, quality])
         return buf.tobytes()
-
-    @staticmethod
-    def depth_to_color(depth_mm: np.ndarray, max_range: int = 4000):
-        """深度(mm) → 彩色图 (近=红, 远=蓝) + clamped + valid mask。"""
-        depth_f = cv2.medianBlur(depth_mm, 3)
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        filled = cv2.dilate(depth_f, kernel, iterations=1)
-        depth_out = np.where(depth_f > 0, depth_f, filled)
-
-        clamped = depth_out.copy()
-        clamped[clamped > max_range] = 0
-        valid = clamped > 0
-
-        norm = np.zeros_like(clamped, dtype=np.uint8)
-        norm[valid] = (255 - (clamped[valid].astype(np.float32)
-                              / max_range * 255)).astype(np.uint8)
-        colored = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
-        colored[~valid] = 0
-
-        return colored, clamped, valid

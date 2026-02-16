@@ -7,21 +7,15 @@ import ctypes
 import json
 import os
 import sys
-import time
 
 import numpy as np
+
+from config import CLASS_NAMES
 
 # 库路径: test/ 的上一级目录下的 lib/
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_DIR = os.path.dirname(_SCRIPT_DIR)
 _LIB_DIR = os.path.join(_PROJECT_DIR, "lib")
-
-# 检测器类别名称
-CLASS_NAMES = {
-    0: "BG", 1: "PERSON", 2: "PET_CAT", 3: "PET_DOG",
-    4: "SOFA", 5: "TABLE", 6: "BED", 7: "EXCREMENT",
-    8: "WIRE", 9: "KEY",
-}
 
 
 def _ensure_lib_env():
@@ -195,6 +189,17 @@ class ImseeSdk:
         lib.imsee_get_device_info_detailed.restype = ctypes.c_char_p
         lib.imsee_get_module_info.argtypes = []
         lib.imsee_get_module_info.restype = ctypes.c_char_p
+
+    # ==========================================================
+    # Context manager
+    # ==========================================================
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()
+        return False
 
     # ==========================================================
     # Init / Release

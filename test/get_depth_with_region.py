@@ -7,19 +7,9 @@ import cv2
 import numpy as np
 import sys
 
+from config import RESOLUTION, FPS
 from imsee_sdk import ImseeSdk
-
-
-def depth_to_color(depth_mm, max_range=4000):
-    valid = depth_mm > 0
-    clamped = depth_mm.copy()
-    clamped[clamped > max_range] = 0
-    valid = clamped > 0
-    norm = np.zeros_like(clamped, dtype=np.uint8)
-    norm[valid] = (255 - (clamped[valid].astype(np.float32) / max_range * 255)).astype(np.uint8)
-    colored = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
-    colored[~valid] = 0
-    return colored
+from vis_utils import depth_to_color
 
 
 def main():
@@ -30,7 +20,7 @@ def main():
     print("=" * 50)
 
     sdk = ImseeSdk()
-    ret = sdk.init(1, 25)
+    ret = sdk.init(RESOLUTION, FPS)
     if ret != 0:
         print(f"初始化失败: {ret}")
         return 1
@@ -64,7 +54,7 @@ def main():
             continue
 
         h, w = depth.shape
-        colored = depth_to_color(depth)
+        colored, _clamped, _valid = depth_to_color(depth, denoise=False)
 
         rh = h // ROWS
         rw = w // COLS
@@ -74,13 +64,13 @@ def main():
                 y0, y1 = r * rh, (r + 1) * rh
                 x0, x1 = c * rw, (c + 1) * rw
                 region = depth[y0:y1, x0:x1]
-                valid = region[region > 0]
+                region_valid = region[region > 0]
 
                 # 绘制网格线
                 cv2.rectangle(colored, (x0, y0), (x1, y1), (200, 200, 200), 1)
 
-                if len(valid) > 0:
-                    avg_mm = np.mean(valid)
+                if len(region_valid) > 0:
+                    avg_mm = np.mean(region_valid)
                     label = f"{avg_mm / 1000:.2f}m"
                 else:
                     label = "N/A"

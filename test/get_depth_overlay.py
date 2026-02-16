@@ -6,25 +6,9 @@ import cv2
 import numpy as np
 import sys
 
+from config import RESOLUTION, FPS
 from imsee_sdk import ImseeSdk
-
-
-def depth_to_color(depth_mm, max_range=4000):
-    """深度(mm) -> 彩色图 (近=红, 远=蓝) + 有效区域 mask"""
-    depth_f = cv2.medianBlur(depth_mm, 3)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    filled = cv2.dilate(depth_f, kernel, iterations=1)
-    depth_out = np.where(depth_f > 0, depth_f, filled)
-
-    clamped = depth_out.copy()
-    clamped[clamped > max_range] = 0
-    valid = clamped > 0
-
-    norm = np.zeros_like(clamped, dtype=np.uint8)
-    norm[valid] = (255 - (clamped[valid].astype(np.float32) / max_range * 255)).astype(np.uint8)
-    colored = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
-    colored[~valid] = 0
-    return colored, clamped, valid
+from vis_utils import depth_to_color
 
 
 def main():
@@ -34,7 +18,7 @@ def main():
     print("=" * 50)
 
     sdk = ImseeSdk()
-    ret = sdk.init(1, 25)
+    ret = sdk.init(RESOLUTION, FPS)
     if ret != 0:
         print(f"初始化失败: {ret}")
         return 1

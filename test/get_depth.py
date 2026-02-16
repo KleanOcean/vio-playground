@@ -3,24 +3,11 @@
 显示彩色深度图 + 中心点距离。按 Q/ESC 退出。
 """
 import cv2
-import numpy as np
 import sys
 
+from config import RESOLUTION, FPS
 from imsee_sdk import ImseeSdk
-
-
-def depth_to_color(depth_mm, max_range=4000):
-    """深度(mm) -> 彩色图 (近=红, 远=蓝)"""
-    valid = depth_mm > 0
-    clamped = depth_mm.copy()
-    clamped[clamped > max_range] = 0
-    valid = clamped > 0
-
-    norm = np.zeros_like(clamped, dtype=np.uint8)
-    norm[valid] = (255 - (clamped[valid].astype(np.float32) / max_range * 255)).astype(np.uint8)
-    colored = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
-    colored[~valid] = 0
-    return colored
+from vis_utils import depth_to_color
 
 
 def main():
@@ -30,7 +17,7 @@ def main():
     print("=" * 50)
 
     sdk = ImseeSdk()
-    ret = sdk.init(1, 25)
+    ret = sdk.init(RESOLUTION, FPS)
     if ret != 0:
         print(f"初始化失败: {ret}")
         return 1
@@ -51,7 +38,7 @@ def main():
         if depth is None:
             continue
 
-        colored = depth_to_color(depth)
+        colored, clamped, valid = depth_to_color(depth, denoise=False)
         h, w = depth.shape
         cx, cy = w // 2, h // 2
         val = depth[cy, cx]

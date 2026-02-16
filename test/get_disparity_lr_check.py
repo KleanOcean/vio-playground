@@ -3,24 +3,11 @@
 使用 LR consistency check 模式。按 Q/ESC 退出。
 """
 import cv2
-import numpy as np
 import sys
 
+from config import RESOLUTION, FPS
 from imsee_sdk import ImseeSdk
-
-
-def disparity_to_color(disp):
-    valid = disp > 0
-    if not np.any(valid):
-        return np.zeros((*disp.shape, 3), dtype=np.uint8)
-    max_val = np.percentile(disp[valid], 95)
-    if max_val <= 0:
-        max_val = 1.0
-    norm = np.zeros_like(disp, dtype=np.uint8)
-    norm[valid] = np.clip(disp[valid] / max_val * 255, 0, 255).astype(np.uint8)
-    colored = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
-    colored[~valid] = 0
-    return colored
+from vis_utils import disparity_to_color
 
 
 def main():
@@ -30,7 +17,7 @@ def main():
     print("=" * 50)
 
     sdk = ImseeSdk()
-    ret = sdk.init(1, 25)
+    ret = sdk.init(RESOLUTION, FPS)
     if ret != 0:
         print(f"初始化失败: {ret}")
         return 1

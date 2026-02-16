@@ -9,6 +9,7 @@ import os
 import sys
 import time
 
+from config import RESOLUTION, FPS
 from imsee_sdk import ImseeSdk
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +25,7 @@ def main():
     print("=" * 50)
 
     sdk = ImseeSdk()
-    ret = sdk.init(1, 25)
+    ret = sdk.init(RESOLUTION, FPS)
     if ret != 0:
         print(f"初始化失败: {ret}")
         return 1

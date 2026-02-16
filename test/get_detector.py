@@ -6,7 +6,8 @@ import cv2
 import numpy as np
 import sys
 
-from imsee_sdk import ImseeSdk, CLASS_NAMES
+from imsee_sdk import ImseeSdk
+from config import CLASS_NAMES, RESOLUTION, FPS
 
 # 每个类别的颜色 (BGR)
 CLASS_COLORS = {
@@ -30,7 +31,7 @@ def main():
     print("=" * 50)
 
     sdk = ImseeSdk()
-    ret = sdk.init(1, 25)
+    ret = sdk.init(RESOLUTION, FPS)
     if ret != 0:
         print(f"初始化失败: {ret}")
         return 1

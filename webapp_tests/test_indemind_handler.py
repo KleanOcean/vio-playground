@@ -1,8 +1,17 @@
 """TDD tests for IndemindHandler — 纯逻辑测试不需要相机。"""
+import sys
+import os
 import numpy as np
 import pytest
 
+# 确保 test/ 在 sys.path 中，vis_utils 可被 import
+_PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_TEST_DIR = os.path.join(_PROJECT_DIR, "test")
+if _TEST_DIR not in sys.path:
+    sys.path.insert(0, _TEST_DIR)
+
 from webapp.indemind_handler import IndemindHandler
+from vis_utils import depth_to_color
 
 
 # ============================================================
@@ -82,14 +91,14 @@ def test_set_alpha_clamp_low():
 
 def test_depth_to_color_shape():
     depth = np.full((100, 200), 2000, dtype=np.uint16)
-    colored, clamped, valid = IndemindHandler.depth_to_color(depth)
+    colored, clamped, valid = depth_to_color(depth)
     assert colored.shape == (100, 200, 3)
     assert colored.dtype == np.uint8
 
 
 def test_depth_to_color_zeros():
     depth = np.zeros((50, 50), dtype=np.uint16)
-    colored, clamped, valid = IndemindHandler.depth_to_color(depth)
+    colored, clamped, valid = depth_to_color(depth)
     # All invalid → all black
     assert np.all(colored == 0)
     assert not np.any(valid)
@@ -98,7 +107,7 @@ def test_depth_to_color_zeros():
 def test_depth_to_color_near_red():
     """Near objects (500mm) should have high red channel (JET colormap: near=red)."""
     depth = np.full((10, 10), 500, dtype=np.uint16)
-    colored, _, _ = IndemindHandler.depth_to_color(depth, max_range=4000)
+    colored, _, _ = depth_to_color(depth, max_range=4000)
     avg_r = colored[:, :, 2].mean()  # OpenCV BGR → channel 2 is R
     avg_b = colored[:, :, 0].mean()  # channel 0 is B
     assert avg_r > avg_b, f"Near should be red: R={avg_r} B={avg_b}"
@@ -107,7 +116,7 @@ def test_depth_to_color_near_red():
 def test_depth_to_color_far_blue():
     """Far objects (3500mm) should have high blue channel."""
     depth = np.full((10, 10), 3500, dtype=np.uint16)
-    colored, _, _ = IndemindHandler.depth_to_color(depth, max_range=4000)
+    colored, _, _ = depth_to_color(depth, max_range=4000)
     avg_r = colored[:, :, 2].mean()
     avg_b = colored[:, :, 0].mean()
     assert avg_b > avg_r, f"Far should be blue: B={avg_b} R={avg_r}"
