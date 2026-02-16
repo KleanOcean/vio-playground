@@ -45,6 +45,7 @@ def main():
 
     win = "Depth Overlay"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(win, 1280, 800)
 
     alpha = 0.5  # 深度图透明度
     last_cam = None
@@ -118,6 +119,8 @@ def main():
         cv2.putText(cam, "A/D: opacity  Q: quit", (10, ch - 15),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
 
+        # 放大 2 倍显示
+        cam = cv2.resize(cam, (cw * 2, ch * 2), interpolation=cv2.INTER_LINEAR)
         cv2.imshow(win, cam)
 
     cv2.destroyAllWindows()
