@@ -1,105 +1,144 @@
-# Indemind OV580 双目立体相机 - Linux 查看器
+# VIO Playground
+
+Indemind OV580 双目立体相机 Python 工具集 — 通过 ctypes 封装 IMSEE-SDK，提供图像、深度、视差、点云、IMU、目标检测等功能。
 
 ## 文件结构
 
 ```
-indemind_linux/
-├── README.md           # 本文档
-├── setup.sh            # 系统配置脚本 (安装依赖 + USB权限)
-├── build.sh            # 编译 wrapper 动态库
-├── camera_viewer.py    # 相机查看器 (左右双目实时显示)
-├── lib/
-│   ├── libindemind.so      # Indemind SDK 核心库
-│   └── libusbdriver.so     # USB 驱动库
-├── include/
-│   ├── imrsdk.h            # SDK 头文件
-│   ├── types.h             # 数据类型定义
-│   ├── imrdata.h           # 数据结构定义
-│   ├── logging.h
-│   ├── svc_config.h
-│   └── times.h
-└── src/
-    └── imsee_wrapper.cpp   # Python ctypes wrapper 源码
+vio-playground/
+├── README.md
+├── build.sh                  # 编译 C wrapper
+├── run_test.sh               # 交互式脚本启动器
+├── setup.sh                  # 系统配置 (依赖 + USB 权限)
+├── src/
+│   └── imsee_wrapper.cpp     # C wrapper 源码 (~780 行)
+├── include/                  # SDK 头文件
+├── lib/                      # SDK 预编译库 (Git LFS)
+├── test/
+│   ├── imsee_sdk.py          # 共用 Python wrapper 类
+│   ├── get_image.py          # 原始双目图像
+│   ├── get_depth.py          # 深度图 (彩色)
+│   ├── get_depth_overlay.py  # 深度叠加查看器 (推荐)
+│   ├── get_depth_viewer.py   # 深度 + L/R 三排布局
+│   ├── get_depth_with_region.py
+│   ├── get_disparity.py      # 视差图
+│   ├── get_disparity_high_accuracy.py
+│   ├── get_disparity_lr_check.py
+│   ├── get_rectified_img.py  # 校正图
+│   ├── get_points.py         # 3D 点云
+│   ├── get_imu.py            # IMU 实时数据
+│   ├── record_imu.py         # IMU 录制到 CSV
+│   ├── get_detector.py       # 目标检测
+│   └── get_device_info.py    # 设备信息 + 标定参数
+└── docs/
+    └── debug_report_opencv_abi.md  # OpenCV ABI 调试报告
 ```
 
 ## 系统要求
 
-- Ubuntu 22.04 / 20.04 (x86_64)
-- Indemind OV580 双目相机 (USB)
-- Python 3.8+
+- Ubuntu 22.04+ (x86_64)
+- Indemind OV580 双目相机 (USB 3.0)
+- Python 3.8+, NumPy, OpenCV
 
 ## 快速开始
 
-### 第一步: 系统配置 (只需运行一次)
+### 1. 系统配置 (首次)
 
 ```bash
-# 安装依赖 + 配置 USB 权限
 sudo ./setup.sh
+# 安装完后拔插一次相机
 ```
 
-这个脚本会:
-- 安装 `build-essential`, `libopencv-dev`, `libusb-1.0-0-dev`, `python3-numpy`
-- 安装 Python OpenCV (`opencv-python`)
-- 创建 udev 规则，让普通用户可以访问相机 (免 sudo)
-
-配置完成后 **拔插一次相机** 让规则生效。
-
-### 第二步: 编译 wrapper
+### 2. 编译
 
 ```bash
-chmod +x build.sh
 ./build.sh
 ```
 
-编译成功后会生成 `lib/libimsee_wrapper.so`。
-
-### 第三步: 运行相机查看器
+### 3. 运行
 
 ```bash
-LD_LIBRARY_PATH=./lib python3 camera_viewer.py
+./run_test.sh
 ```
 
-- 窗口会显示左右两个摄像头画面 (标注 L 和 R)
-- 5秒后自动保存截图到 `screenshot.png`
-- 按 **Q** 或 **ESC** 退出
+显示交互菜单，输入编号即可运行：
+
+```
+==================================
+  Indemind SDK 测试脚本
+==================================
+
+  [ 1] get_depth.py
+  [ 2] get_depth_overlay.py
+  [ 3] get_depth_viewer.py
+  ...
+  [15] record_imu.py
+
+请输入编号 (1-15):
+```
+
+也可以直接指定：
+
+```bash
+./run_test.sh get_depth_overlay.py
+```
+
+## 功能一览
+
+| 脚本 | 功能 | 按键 |
+|------|------|------|
+| `get_image.py` | 左右双目原始画面 | Q 退出 |
+| `get_depth_overlay.py` | **深度叠加在摄像头上** | A/D 调透明度, Q 退出 |
+| `get_depth_viewer.py` | 深度 + L + R 三排布局 | Q 退出 |
+| `get_disparity.py` | 视差图 | Q 退出 |
+| `get_rectified_img.py` | 校正后图像 | Q 退出 |
+| `get_points.py` | 3D 点云统计 | 自动退出 |
+| `get_imu.py` | IMU 实时加速度/陀螺仪 | Ctrl+C 退出 |
+| `record_imu.py` | IMU 录制到 CSV | `record_imu.py 10 out.csv` |
+| `get_detector.py` | 目标检测 (人/宠物/家具) | Q 退出 |
+| `get_device_info.py` | 设备信息 + 标定参数 | 自动退出 |
+
+## 架构
+
+```
+Python 脚本 (test/*.py)
+    ↓ ctypes
+libimsee_wrapper.so (我们的 C wrapper)
+    ↓ C++ API
+libindemind.so (SDK, OpenCV 3.4)
+    ↓ libusb
+OV580 相机 (USB 3.0)
+```
+
+> **注意**: wrapper 链接系统 OpenCV 4.x，SDK 内部用 OpenCV 3.4，两者通过不同 soname 共存。
+> 详见 [docs/debug_report_opencv_abi.md](docs/debug_report_opencv_abi.md)
 
 ## 常见问题
 
-### Q: 报错 "找不到相机"
-```
-检查步骤:
-1. lsusb | grep 05a9          # 确认相机已连接 (应该看到 05a9:f581)
-2. ls -la /dev/bus/usb/*/*     # 确认 USB 设备权限
-3. sudo ./setup.sh             # 重新配置 USB 权限
-4. 拔插相机后再试
+### 找不到相机
+
+```bash
+lsusb | grep 05a9              # 确认相机连接 (应看到 05a9:f581)
+sudo ./setup.sh                # 重新配置 USB 权限
+# 拔插相机后再试
 ```
 
-### Q: 报错 "GLIBC_xxx not found"
-预编译库是给较旧系统编译的。如果遇到 glibc 兼容问题:
-```bash
-# 检查库依赖
-ldd lib/libindemind.so
-# 如果有 "not found"，可能需要安装旧版兼容库或联系 Indemind 获取新版 SDK
-```
+### 编译报错找不到 OpenCV
 
-### Q: 编译报错 "找不到 opencv"
 ```bash
-# 确认 OpenCV 已安装
-pkg-config --modversion opencv4
-# 如果没有，安装:
 sudo apt install libopencv-dev
+pkg-config --modversion opencv4  # 应显示 4.x
 ```
 
-### Q: 画面卡顿或掉帧
+### 画面卡顿
+
 ```bash
-# 确认 USB 3.0 连接 (不要用 USB 2.0 口)
-lsusb -t | grep 05a9
-# 应该显示 5000M (USB 3.0)
+lsusb -t | grep 05a9           # 确认 USB 3.0 连接 (5000M)
 ```
 
-## 技术说明
+### Segfault
 
-- SDK 通过 USB 直接访问相机 (libusb)，不走 V4L2/UVC
-- 回调函数在 SDK 内部线程触发，wrapper 用互斥锁保护共享缓冲区
-- 左右相机图像拼接为一张灰度图 (宽度x2)，Python 端再分割显示
-- 相机分辨率: 640x400 (每只眼) 或 1280x800 (每只眼)
+```bash
+# 如果之前崩溃过，相机可能卡住，物理拔插一次
+# 确认用 run_test.sh 运行（自动设置 LD_LIBRARY_PATH）
+```
