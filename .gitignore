@@ -1,5 +1,5 @@
 # Build artifacts
-lib/libimsee_wrapper.so
+indemind_camera/lib/libimsee_wrapper.so
 
 # Python
 __pycache__/
